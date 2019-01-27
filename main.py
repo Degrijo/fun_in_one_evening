@@ -51,50 +51,68 @@ class Player:
         if self.hp <= 0:
             enemies.pop(enemies.index(self))
 
+    def move(self):
+        if "x" in self.last_move and 0 <= self.x <= win_size - self.width:
+            if "-" in self.last_move:
+                self.x -= self.speed
+            else:
+                self.x += self.speed
+        elif "y" in self.last_move and 0 <= self.y <= win_size - self.width:
+            if "-" in self.last_move:
+                self.y -= self.speed
+            else:
+                self.y += self.speed
+
     def dodge(self):
-        global enemies
-        free_sides = ['+x', '-x', '+y', '-y']  # mechanic of dodge
-        for enemy in enemies:
+        global enemies, free_sides, start_tick
+        if pg.time.get_ticks() - start_tick >= 200:
+            free_sides = {'+x': 0, '-x': 0, '+y': 0, '-y': 0}  # should call in period of the time
+            start_tick = pg.time.get_ticks()
+        for enemy in enemies:  # mb need to do addiction from own bullets
             if enemy is not self:
                 if enemy.bullets is not []:
                     for bullet in enemy.bullets:
                         if self.ar_of_vis[0] <= abs(self.y+self.width-bullet.y) <= self.ar_of_vis[1]:
-                            print("ok1-ok1")
                             if self.y > bullet.y and bullet.direct == '+y':
-                                print("ok1-ok1-ok1")
-                                free_sides.pop(free_sides.index('-y'))
+                                free_sides['-y'] -= 2
+                                free_sides['+y'] -= 1
                             elif self.y < bullet.y and bullet.direct == '-y':
-                                print("ok1-ok1-ok1")
-                                free_sides.pop(free_sides.index('+y'))
+                                free_sides['+y'] -= 2
+                                free_sides['-y'] -= 1
                         if self.ar_of_vis[0] <= abs(self.x+self.width-bullet.x) <= self.ar_of_vis[1]:
-                            print("ok2-ok2")
                             if self.x > bullet.x and bullet.direct == '+x':
-                                print("ok2-ok2-ok2")
-                                free_sides.pop(free_sides.index('-x'))
+                                free_sides['-x'] -= 2
+                                free_sides['+x'] -= 1
                             elif self.x < bullet.x and bullet.direct == '-x':
-                                print("ok2-ok2-ok2")
-                                free_sides.pop(free_sides.index('+x'))
+                                free_sides['+x'] -= 2
+                                free_sides['-x'] -= 1
                 else:
                     self.attack()
-
+        if self.x <= 10:
+            free_sides['-x'] -= 3
+        elif win_size - self.x - self.width <= 10:
+            free_sides['+x'] -= 3
+        if self.y <= 10:
+            free_sides['-y'] -= 3
+        elif win_size - self.y - self.width <= 10:
+            free_sides['+y'] -= 3
         print(free_sides)
-        if len(free_sides) is 0:
-            pass
-        elif len(free_sides) is 4:
+        if list(free_sides.values()) is [0, 0, 0, 0]:
             self.attack()
         else:
-            side = choice(free_sides)
-            tick = pg.time.get_ticks()
-            if 'x' in side:
-                if '+' in side:
-                        self.x += self.speed
-                else:
-                        self.x -= self.speed
+            if list(free_sides.values()).count(max(free_sides.values())) == 1:
+                for key in free_sides.keys():
+                    if free_sides[key] == max(free_sides.values()):
+                        self.last_move = key
+                        break
             else:
-                if '+' in side:
-                        self.y += self.speed
-                else:
-                        self.y -= self.speed
+                ch = []
+                for key in free_sides.keys():
+                    if free_sides[key] == max(free_sides.values()):
+                       ch.append(key)
+                self.last_move = choice(ch)
+            free_sides[self.last_move] += 0.1
+            self.move()
 
     def attack(self):
         global enemies
@@ -103,18 +121,18 @@ class Player:
                 if abs(self.x - enemy.x) > enemy.width // 2 and abs(self.y - enemy.y) > enemy.width // 2:
                     if abs(self.x - enemy.x) > abs(self.y - enemy.y):
                         if self.y < enemy.y:
-                            self.y += self.speed
                             self.last_move = "+y"
+                            self.move()
                         else:
-                            self.y -= self.speed
                             self.last_move = "-y"
+                            self.move()
                     else:
                         if self.x < enemy.x:
-                            self.x += self.speed
                             self.last_move = "+x"
+                            self.move()
                         else:
-                            self.x -= self.speed
                             self.last_move = "-x"
+                            self.move()
                 else:
                     if abs(self.x - enemy.x) <= enemy.width // 2:
                         if self.y > enemy.y:
@@ -145,8 +163,11 @@ class Bullet:
         pg.draw.circle(win, (0, 255, 0), (self.x, self.y), self.rad)
 
 
-enemies = [Player(win_size//2, win_size//5, 10, 0.5, 50, 5, (0, 0, 255), [2, 20]),
+enemies = [Player(win_size//2, win_size//5, 10, 0.5, 50, 5, (0, 0, 255), [4, 15]),
            Player(win_size//2, win_size - win_size//5, 10, 0.5, 50, 5, (255, 0, 0), [2, 5])]
+start_tick = pg.time.get_ticks()
+free_sides = {'+x': 0, '-x': 0, '+y': 0, '-y': 0}
+
 run = True
 while run:
     clock.tick(300)
