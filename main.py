@@ -1,4 +1,5 @@
 import pygame as pg
+from random import choice
 
 pg.init()
 win_size = 500
@@ -8,7 +9,7 @@ clock = pg.time.Clock()
 
 
 class Player:
-    def __init__(self, x, y, width, speed, hp, damage, color):
+    def __init__(self, x, y, width, speed, hp, damage, color, ar_of_vis, speed_of_bul=1, rad_of_bul = 2):
         self.x = x
         self.y = y
         self.width = width
@@ -19,13 +20,16 @@ class Player:
         self.kd = [pg.time.get_ticks() for _ in range(2)]
         self.last_move = "-y"
         self.color = color
+        self.ar_of_vis = ar_of_vis
+        self.speed_of_bul = speed_of_bul
+        self.rad_of_bul = rad_of_bul
 
     def draw(self):
         pg.draw.rect(win, self.color, (self.x, self.y, self.width, self.width))
 
     def attack_q(self):
-        if pg.time.get_ticks() - self.kd[0] >= 500:
-            self.bullets.append(Bullet(round(self.x + self.width // 2), round(self.y + self.width // 2), 1, 2, self.last_move))
+        if pg.time.get_ticks() - self.kd[0] >= 1000:
+            self.bullets.append(Bullet(round(self.x + self.width // 2), round(self.y + self.width // 2), self.speed_of_bul, self.rad_of_bul, self.last_move))
             self.kd[0] = pg.time.get_ticks()
 
     def attack_w(self):
@@ -42,17 +46,91 @@ class Player:
                     self.y += 30
             self.kd[1] = pg.time.get_ticks()
 
-    def control_bullets(self):
-        for bul in self.bullets:
-            bul.control(self)
-
     def is_dead(self):
-        global me, enemies, run
+        global enemies, run
         if self.hp <= 0:
-            if self is me:
-                run = False
+            enemies.pop(enemies.index(self))
+
+    def dodge(self):
+        global enemies
+        free_sides = ['+x', '-x', '+y', '-y']  # mechanic of dodge
+        for enemy in enemies:
+            if enemy is not self:
+                if enemy.bullets is not []:
+                    for bullet in enemy.bullets:
+                        if self.ar_of_vis[0] <= abs(self.y+self.width-bullet.y) <= self.ar_of_vis[1]:
+                            print("ok1-ok1")
+                            if self.y > bullet.y and bullet.direct == '+y':
+                                print("ok1-ok1-ok1")
+                                free_sides.pop(free_sides.index('-y'))
+                            elif self.y < bullet.y and bullet.direct == '-y':
+                                print("ok1-ok1-ok1")
+                                free_sides.pop(free_sides.index('+y'))
+                        if self.ar_of_vis[0] <= abs(self.x+self.width-bullet.x) <= self.ar_of_vis[1]:
+                            print("ok2-ok2")
+                            if self.x > bullet.x and bullet.direct == '+x':
+                                print("ok2-ok2-ok2")
+                                free_sides.pop(free_sides.index('-x'))
+                            elif self.x < bullet.x and bullet.direct == '-x':
+                                print("ok2-ok2-ok2")
+                                free_sides.pop(free_sides.index('+x'))
+                else:
+                    self.attack()
+
+        print(free_sides)
+        if len(free_sides) is 0:
+            pass
+        elif len(free_sides) is 4:
+            self.attack()
+        else:
+            side = choice(free_sides)
+            tick = pg.time.get_ticks()
+            if 'x' in side:
+                if '+' in side:
+                        self.x += self.speed
+                else:
+                        self.x -= self.speed
             else:
-                enemies.pop(enemies.index(self))
+                if '+' in side:
+                        self.y += self.speed
+                else:
+                        self.y -= self.speed
+
+    def attack(self):
+        global enemies
+        for enemy in enemies:
+            if enemy is not self:
+                if abs(self.x - enemy.x) > enemy.width // 2 and abs(self.y - enemy.y) > enemy.width // 2:
+                    if abs(self.x - enemy.x) > abs(self.y - enemy.y):
+                        if self.y < enemy.y:
+                            self.y += self.speed
+                            self.last_move = "+y"
+                        else:
+                            self.y -= self.speed
+                            self.last_move = "-y"
+                    else:
+                        if self.x < enemy.x:
+                            self.x += self.speed
+                            self.last_move = "+x"
+                        else:
+                            self.x -= self.speed
+                            self.last_move = "-x"
+                else:
+                    if abs(self.x - enemy.x) <= enemy.width // 2:
+                        if self.y > enemy.y:
+                            self.last_move = "-y"
+                        else:
+                            self.last_move = "+y"
+                    elif abs(self.y - enemy.y) <= enemy.width // 2:
+                        if self.x > enemy.x:
+                            self.last_move = "-x"
+                        else:
+                            self.last_move = "+x"
+
+                    self.attack_q()
+
+    def walk(self):
+        pass
 
 
 class Bullet:
@@ -66,72 +144,9 @@ class Bullet:
     def draw(self):
         pg.draw.circle(win, (0, 255, 0), (self.x, self.y), self.rad)
 
-    def control(self, obj):
-        if self.x >= win_size or self.x + self.rad * 2 <= 0 or self.y >= win_size or self.y + self.rad * 2 <= 0:
-            obj.bullets.pop(obj.bullets.index(self))
-            return
-        else:
-            if "x" in self.direct:
-                if "-" in self.direct:
-                    self.x -= self.speed
-                else:
-                    self.x += self.speed
-            else:
-                if "-" in self.direct:
-                    self.y -= self.speed
-                else:
-                    self.y += self.speed
-            global me, enemies
-            if obj is me:
-                for enemy in enemies:
-                    if enemy.x <= self.x <= enemy.x + enemy.width and enemy.y <= self.y <= enemy.y + enemy.width:
-                        obj.bullets.pop(obj.bullets.index(self))
-                        enemy.hp -= obj.damage
-                        enemy.is_dead()
-                        return
-            else:
-                if me.x <= self.x <= me.x + me.width and me.y <= self.y <= me.y + me.width:
-                    obj.bullets.pop(obj.bullets.index(self))
-                    me.hp -= obj.damage
-                    me.is_dead()
-                    return
 
-
-def bot():
-    global enemies, me
-    for enemy in enemies:
-        if abs(enemy.x - me.x) > me.width//2 and abs(enemy.y - me.y) > me.width//2:
-            if abs(enemy.x - me.x) > abs(enemy.y - me.y):
-                if enemy.y < me.y:
-                    enemy.y += enemy.speed
-                    enemy.last_move = "+y"
-                else:
-                    enemy.y -= enemy.speed
-                    enemy.last_move = "-y"
-            else:
-                if enemy.x < me.x:
-                    enemy.x += enemy.speed
-                    enemy.last_move = "+x"
-                else:
-                    enemy.x -= enemy.speed
-                    enemy.last_move = "-x"
-        else:
-            if abs(enemy.x - me.x) <= me.width // 2:
-                if enemy.y > me.y:
-                    enemy.last_move = "-y"
-                else:
-                    enemy.last_move = "+y"
-            elif abs(enemy.y - me.y) <= me.width // 2:
-                if enemy.x > me.x:
-                    enemy.last_move = "-x"
-                else:
-                    enemy.last_move = "+x"
-
-            enemy.attack_q()
-
-
-me = Player(win_size//2, win_size - win_size//5, 10, 0.5, 50, 5, (255, 0, 0))
-enemies = [Player(win_size//2, win_size//5, 10, 0.5, 50, 5, (0, 0, 255))]
+enemies = [Player(win_size//2, win_size//5, 10, 0.5, 50, 5, (0, 0, 255), [2, 20]),
+           Player(win_size//2, win_size - win_size//5, 10, 0.5, 50, 5, (255, 0, 0), [2, 5])]
 run = True
 while run:
     clock.tick(300)
@@ -139,35 +154,35 @@ while run:
         if event.type == pg.QUIT:
             run = False
 
-    me.control_bullets()
     for enemy in enemies:
-        enemy.control_bullets()
-    keys = pg.key.get_pressed()
-
-    if keys[pg.K_RIGHT] and me.x < win_size - me.width:
-        me.x += me.speed
-        me.last_move = "+x"
-    elif keys[pg.K_LEFT] and me.x > 0:
-        me.x -= me.speed
-        me.last_move = "-x"
-    elif keys[pg.K_DOWN] and me.y < win_size - me.width:
-        me.y += me.speed
-        me.last_move = "+y"
-    elif keys[pg.K_UP] and me.y > 0:
-        me.y -= me.speed
-        me.last_move = "-y"
-
-    if keys[pg.K_q]:
-        me.attack_q()
-    elif keys[pg.K_w]:
-        me.attack_w()
-
-    bot()
-
+        for bullet in enemy.bullets:
+            if 0 <= bullet.x <= win_size - bullet.rad*2 and 0 <= bullet.y <= win_size - bullet.rad*2:
+                for hero in enemies:
+                    if enemy is not hero:
+                        if abs(hero.x - bullet.x) < hero.width and abs(hero.y - bullet.y) < hero.width:
+                            hero.hp -= enemy.damage
+                            enemy.bullets.pop(enemy.bullets.index(bullet))
+                            hero.is_dead()
+                if bullet is not None:
+                    if 'x' in bullet.direct:
+                        if '+' in bullet.direct:
+                            bullet.x += bullet.speed
+                        else:
+                            bullet.x -= bullet.speed
+                    else:
+                        if '+' in bullet.direct:
+                            bullet.y += bullet.speed
+                        else:
+                            bullet.y -= bullet.speed
+            else:
+                enemy.bullets.pop(enemy.bullets.index(bullet))
+    if len(enemies) is 2:
+        enemies[0].dodge()
+        enemies[1].attack()
+    else:
+        enemies[0].attack()
+    print(enemies[0].hp)
     win.fill((255, 255, 255))
-    me.draw()
-    for bul in me.bullets:
-        bul.draw()
     for enemy in enemies:
         enemy.draw()
         for bul in enemy.bullets:
