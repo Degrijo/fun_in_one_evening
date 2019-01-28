@@ -9,7 +9,7 @@ clock = pg.time.Clock()
 
 
 class Player:
-    def __init__(self, x, y, width, speed, hp, damage, color, ar_of_vis, speed_of_bul=1, rad_of_bul = 2):
+    def __init__(self, x, y, width, speed, hp, damage, color, ar_of_vis, speed_of_bul=1, rad_of_bul=2):
         self.x = x
         self.y = y
         self.width = width
@@ -65,12 +65,11 @@ class Player:
 
     def dodge(self):
         global enemies, free_sides, start_tick
-        if pg.time.get_ticks() - start_tick >= 200:
+        if pg.time.get_ticks() - start_tick >= 400:
             free_sides = {'+x': 0, '-x': 0, '+y': 0, '-y': 0}  # should call in period of the time
             start_tick = pg.time.get_ticks()
         for enemy in enemies:  # mb need to do addiction from own bullets
             if enemy is not self:
-                if enemy.bullets is not []:
                     for bullet in enemy.bullets:
                         if self.ar_of_vis[0] <= abs(self.y+self.width-bullet.y) <= self.ar_of_vis[1]:
                             if self.y > bullet.y and bullet.direct == '+y':
@@ -86,8 +85,7 @@ class Player:
                             elif self.x < bullet.x and bullet.direct == '-x':
                                 free_sides['+x'] -= 2
                                 free_sides['-x'] -= 1
-                else:
-                    self.attack()
+
         if self.x <= 10:
             free_sides['-x'] -= 3
         elif win_size - self.x - self.width <= 10:
@@ -97,8 +95,8 @@ class Player:
         elif win_size - self.y - self.width <= 10:
             free_sides['+y'] -= 3
         print(free_sides)
-        if list(free_sides.values()) is [0, 0, 0, 0]:
-            self.attack()
+        if list(free_sides.values()) == [0, 0, 0, 0]:
+            return
         else:
             if list(free_sides.values()).count(max(free_sides.values())) == 1:
                 for key in free_sides.keys():
@@ -163,8 +161,8 @@ class Bullet:
         pg.draw.circle(win, (0, 255, 0), (self.x, self.y), self.rad)
 
 
-enemies = [Player(win_size//2, win_size//5, 10, 0.5, 50, 5, (0, 0, 255), [4, 15]),
-           Player(win_size//2, win_size - win_size//5, 10, 0.5, 50, 5, (255, 0, 0), [2, 5])]
+enemies = [Player(win_size//2, win_size//5, 10, 0.5, 50, 5, (0, 0, 255), [2, 7]),
+           Player(win_size//2, win_size - win_size//5, 10, 0.5, 50, 5, (255, 0, 0), [3, 6])]
 start_tick = pg.time.get_ticks()
 free_sides = {'+x': 0, '-x': 0, '+y': 0, '-y': 0}
 
@@ -197,7 +195,7 @@ while run:
                             bullet.y -= bullet.speed
             else:
                 enemy.bullets.pop(enemy.bullets.index(bullet))
-    if len(enemies) is 2:
+    if len(enemies) == 2:
         enemies[0].dodge()
         enemies[1].attack()
     else:
