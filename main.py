@@ -4,7 +4,7 @@ from random import choice
 pg.init()
 win_size = 500
 pg.display.set_caption("Cube Game")
-win = pg.display.set_mode((win_size, win_size))
+win = pg.display.set_mode((win_size+200, win_size))
 clock = pg.time.Clock()
 
 
@@ -192,14 +192,17 @@ class Player:
 
     def get_target(self):
         global enemies
-        best_ch = [enemies[0]]
+        best_ch = []
         for enemy in enemies:
             if enemy is not self:
+                if best_ch is []:
                     if ((enemy.x-self.x)**2+(enemy.y-self.y)**2)**1/2 < ((best_ch[0].x-self.x)**2+(best_ch[0].y-self.y)**2)**1/2:
                         best_ch.clear()
                         best_ch.append(enemy)
                     elif ((enemy.x-self.x)**2+(enemy.y-self.y)**2)**1/2 == ((best_ch[0].x-self.x)**2+(best_ch[0].y-self.y)**2)**1/2:
                         best_ch.append(enemy)
+                else:
+                    best_ch.append(enemy)
         return choice(best_ch)
 
 
@@ -225,44 +228,65 @@ class Bullet:
             self.y -= self.speed
 
 
-enemies = [Player(win_size//3, 2*win_size//6, 10, 0.5, 50, 5, (0, 0, 255), 40),
-           Player(win_size//3, 4*win_size//6, 10, 0.5, 50, 5, (255, 0, 0), 40),
-           Player(2*win_size//3, 5*win_size//6, 10, 0.5, 50, 5, (0, 255, 0), 40)]
+def text_disp(text, x, y):
+    myfont = pg.font.SysFont('Comic Sans MS', 15)
+    textsurface = myfont.render(text, False, (0, 0, 0))
+    win.blit(textsurface, (x, y))
+
+
+enemies = [Player(0, 0, 10, 0.5, 50, 5, (255, 0, 0), 40),
+           Player(win_size // 2 - 5, 0, 10, 0.5, 50, 5, (255, 146, 0), 40),
+           Player(win_size - 10, 0, 10, 0.5, 50, 5, (255, 211, 0), 40),
+           Player(0, win_size // 2 - 5, 10, 0.5, 50, 5, (204, 246, 0), 40),
+           Player(win_size - 10, win_size // 2 - 5, 10, 0.5, 50, 5, (0, 204, 0), 40),
+           Player(0, win_size - 10, 10, 0.5, 50, 5, (11, 97, 164), 40),
+           Player(win_size // 2 - 5, win_size - 10, 10, 0.5, 50, 5, (57, 20, 175), 40),
+           Player(win_size - 10, win_size - 10, 10, 0.5, 50, 5, (165, 0, 165), 40)]
 
 for enemy in enemies:
     enemy.target = enemy.get_target()
 
 run = True
+paused = False
 while run:
     clock.tick(300)
     for event in pg.event.get():
         if event.type == pg.QUIT:
             run = False
+        elif event.type == pg.KEYDOWN:
+            if event.key == pg.K_q:
+              paused = not paused
 
-    for enemy in enemies:
-        if pg.time.get_ticks() - enemy.kd[0] >= 10000 or enemy.target not in enemies:
-            enemy.target = enemy.get_target()
-            enemy.kd[0] = pg.time.get_ticks()
-        for bullet in enemy.bullets:
-            if 0 <= bullet.x <= win_size - bullet.rad*2 and 0 <= bullet.y <= win_size - bullet.rad*2:
-                for hero in enemies:
-                    if enemy is not hero:
-                        if (0 < hero.x - bullet.x < bullet.rad * 2 or hero.x <= bullet.x < hero.x + hero.width) and \
-                                (0 < hero.y - bullet.y < bullet.rad * 2 or hero.y <= bullet.y < hero.y + hero.width):
-                            hero.hp -= enemy.damage
-                            enemy.bullets.pop(enemy.bullets.index(bullet))
-                            hero.is_dead()
-                if bullet is not None:
-                    bullet.move()
-            else:
-                enemy.bullets.pop(enemy.bullets.index(bullet))
-    if len(enemies) <= 1:
-        run = False
-    else:
+    if not paused:
         for enemy in enemies:
-            enemy.dodge()
-    win.fill((255, 255, 255))
+            if pg.time.get_ticks() - enemy.kd[0] >= 10000 or enemy.target not in enemies:
+                enemy.target = enemy.get_target()
+                enemy.kd[0] = pg.time.get_ticks()
+            for bullet in enemy.bullets:
+                if 0 <= bullet.x <= win_size - bullet.rad*2 and 0 <= bullet.y <= win_size - bullet.rad*2:
+                    for hero in enemies:
+                        if enemy is not hero:
+                            if (0 < hero.x - bullet.x < bullet.rad * 2 or hero.x <= bullet.x < hero.x + hero.width) and \
+                                    (0 < hero.y - bullet.y < bullet.rad * 2 or hero.y <= bullet.y < hero.y + hero.width):
+                                hero.hp -= enemy.damage
+                                enemy.bullets.pop(enemy.bullets.index(bullet))
+                                hero.is_dead()
+                    if bullet is not None:
+                        bullet.move()
+                else:
+                    enemy.bullets.pop(enemy.bullets.index(bullet))
+        if len(enemies) <= 1:
+            paused = True
+        else:
+            for enemy in enemies:
+                enemy.dodge()
+    win.fill((52, 40, 65))
+    pg.draw.rect(win, (255, 255, 255), (win_size, 0, 200, win_size))
+    y = 50  # чтобы игроки не накладывались друг на друга
     for enemy in enemies:
+        text_disp("hp:"+str(enemy.hp)+str(enemy.target)[26:], win_size+30, y)
+        pg.draw.rect(win, enemy.color, (win_size + 10, y, enemy.width, enemy.width))
+        y += 50
         enemy.draw()
         for bul in enemy.bullets:
             bul.draw()
