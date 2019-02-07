@@ -55,20 +55,34 @@ class Player:
             enemies.pop(enemies.index(self))
 
     def move(self):
-        if "x" in self.last_move and 0 <= self.x <= win_size - self.width:
-            if "-" in self.last_move:
+        global enemies
+        cant_move = []
+        for enemy in enemies:
+            if self.last_move == '+x' and enemy.x - self.x == self.width and (-1)*enemy.width < enemy.y - self.y < self.width and '+x' not in cant_move:
+                cant_move.append('+x')
+                self.free_sides['+x'] -= 1
+            elif self.last_move == '-x' and self.x - enemy.x == enemy.width and (-1)*enemy.width < enemy.y - self.y < self.width and '-x' not in cant_move:
+                cant_move.append('-x')
+                self.free_sides['-x'] -= 1
+            elif self.last_move == '+y' and enemy.y - self.y == self.width and (-1)*enemy.width < enemy.x - self.x < self.width and '+y' not in cant_move:
+                cant_move.append('+y')
+                self.free_sides['+y'] -= 1
+            elif self.last_move == '-y' and self.y - enemy.y == enemy.width and (-1)*enemy.width < enemy.x - self.x < self.width and '-y' not in cant_move:
+                cant_move.append('-y')
+                self.free_sides['-y'] -= 1
+        if self.last_move not in cant_move and 0 <= self.x <= win_size - self.width and 0 <= self.y <= win_size - self.width: # self.last_move not in cant_move and
+            if self.last_move == '-x':
                 self.x -= self.speed
-            else:
+            elif self.last_move == '+x':
                 self.x += self.speed
-        elif "y" in self.last_move and 0 <= self.y <= win_size - self.width:
-            if "-" in self.last_move:
+            elif self.last_move == '-y':
                 self.y -= self.speed
-            else:
+            elif self.last_move == '+y':
                 self.y += self.speed
 
     def dodge(self):
         global enemies
-        if pg.time.get_ticks() - self.kd[1] >= 100:
+        if pg.time.get_ticks() - self.kd[1] >= 200:
             self.free_sides = {'+x': 0, '-x': 0, '+y': 0, '-y': 0, 'is_dang': False}
             self.kd[1] = pg.time.get_ticks()
         for enemy in enemies:
@@ -76,7 +90,7 @@ class Player:
                     for bullet in enemy.bullets:
                         if self.x - self.ar_of_vis <= bullet.x and bullet.x + bullet.rad*2 <= self.x + self.width + \
                             self.ar_of_vis and self.y - self.ar_of_vis <= bullet.y and bullet.y + bullet.rad*2 <=\
-                                self.y + self.width + self.ar_of_vis:  # checking for the location in area of the vis
+                                self.y + self.width + self.ar_of_vis:
                             poz = []
                             if bullet.x + bullet.rad*2 <= self.x:
                                 poz = [1, 2, 3]
@@ -97,36 +111,36 @@ class Player:
                                         self.free_sides['is_dang'] = True
                                         self.free_sides['-x'] -= 2
                                         self.free_sides['+x'] -= 1
-                                    elif poz[0] == 1 or 4 or 6:
+                                    elif poz[0] in [1, 4, 6]:
                                         self.free_sides['-y'] -= 2
-                                    elif poz[0] == 3 or 5 or 8:
+                                    elif poz[0] in [3, 5, 8]:
                                         self.free_sides['+y'] -= 2
                                 elif bullet.direct == '-x':
                                     if poz[0] == 7:
                                         self.free_sides['is_dang'] = True
                                         self.free_sides['+x'] -= 2
                                         self.free_sides['-x'] -= 1
-                                    elif poz[0] == 1 or 4 or 6:
+                                    elif poz[0] in [1, 4, 6]:
                                         self.free_sides['-y'] -= 2
-                                    elif poz[0] == 3 or 5 or 8:
+                                    elif poz[0] in [3, 5, 8]:
                                         self.free_sides['+y'] -= 2
                                 elif bullet.direct == '+y':
                                     if poz[0] == 4:
                                         self.free_sides['is_dang'] = True
                                         self.free_sides['-y'] -= 2
                                         self.free_sides['+y'] -= 1
-                                    elif poz[0] == 1 or 2 or 3:
+                                    elif poz[0] in [1, 2, 3]:
                                         self.free_sides['-x'] -= 2
-                                    elif poz[0] == 6 or 7 or 8:
+                                    elif poz[0] in [6, 7, 8]:
                                         self.free_sides['+x'] -= 2
                                 elif bullet.direct == '-y':
                                     if poz[0] == 5:
                                         self.free_sides['is_dang'] = True
                                         self.free_sides['+y'] -= 2
                                         self.free_sides['-y'] -= 1
-                                    elif poz[0] == 1 or 2 or 3:
+                                    elif poz[0] in [1, 2, 3]:
                                         self.free_sides['-x'] -= 2
-                                    elif poz[0] == 6 or 7 or 8:
+                                    elif poz[0] in [6, 7, 8]:
                                         self.free_sides['+x'] -= 2
 
         if self.x <= 10:
@@ -228,64 +242,78 @@ class Bullet:
             self.y -= self.speed
 
 
+def control_bullets(enemies):
+    for enemy in enemies:
+        if enemy.target not in enemies:  # pg.time.get_ticks() - enemy.kd[0] >= 10000 or
+            enemy.target = enemy.get_target()
+            enemy.kd[0] = pg.time.get_ticks()
+        for bullet in enemy.bullets:
+            if 0 <= bullet.x <= win_size - bullet.rad * 2 and 0 <= bullet.y <= win_size - bullet.rad * 2:
+                for hero in enemies:
+                    if enemy is not hero:
+                        if (0 < hero.x - bullet.x < bullet.rad * 2 or hero.x <= bullet.x < hero.x + hero.width) and \
+                                (0 < hero.y - bullet.y < bullet.rad * 2 or hero.y <= bullet.y < hero.y + hero.width):
+                            hero.hp -= enemy.damage
+                            if bullet in enemy.bullets:
+                                enemy.bullets.pop(enemy.bullets.index(bullet))
+                            hero.is_dead()
+                if bullet is not None:
+                    bullet.move()
+            else:
+                enemy.bullets.pop(enemy.bullets.index(bullet))
+
+
 def text_disp(text, x, y):
     myfont = pg.font.SysFont('Comic Sans MS', 15)
     textsurface = myfont.render(text, False, (0, 0, 0))
     win.blit(textsurface, (x, y))
 
 
-enemies = [Player(0, 0, 10, 0.5, 50, 5, (255, 0, 0), 40),
-           Player(win_size // 2 - 5, 0, 10, 0.5, 50, 5, (255, 146, 0), 40),
-           Player(win_size - 10, 0, 10, 0.5, 50, 5, (255, 211, 0), 40),
-           Player(0, win_size // 2 - 5, 10, 0.5, 50, 5, (204, 246, 0), 40),
-           Player(win_size - 10, win_size // 2 - 5, 10, 0.5, 50, 5, (0, 204, 0), 40),
-           Player(0, win_size - 10, 10, 0.5, 50, 5, (11, 97, 164), 40),
-           Player(win_size // 2 - 5, win_size - 10, 10, 0.5, 50, 5, (57, 20, 175), 40),
-           Player(win_size - 10, win_size - 10, 10, 0.5, 50, 5, (165, 0, 165), 40)]
+enemies = [Player(0, 0, 10, 0.5, 50, 5, (255, 0, 0), 20),
+           Player(win_size // 2 - 5, 0, 10, 0.5, 50, 5, (255, 146, 0), 20),
+           Player(win_size - 10, 0, 10, 0.5, 50, 5, (255, 211, 0), 20),
+           Player(0, win_size // 2 - 5, 10, 0.5, 50, 5, (204, 246, 0), 20),
+           Player(win_size - 10, win_size // 2 - 5, 10, 0.5, 50, 5, (0, 204, 0), 20),
+           Player(0, win_size - 10, 10, 0.5, 50, 5, (11, 97, 164), 20),
+           Player(win_size // 2 - 5, win_size - 10, 10, 0.5, 50, 5, (57, 20, 175), 20),
+           Player(win_size - 10, win_size - 10, 10, 0.5, 50, 5, (165, 0, 165), 20)]
 
 for enemy in enemies:
     enemy.target = enemy.get_target()
 
 run = True
 paused = False
+speed_var = 12
 while run:
-    clock.tick(300)
+    clock.tick(25*speed_var)
     for event in pg.event.get():
         if event.type == pg.QUIT:
             run = False
         elif event.type == pg.KEYDOWN:
             if event.key == pg.K_q:
               paused = not paused
-
+            elif event.key == pg.K_w:
+                if speed_var < 30:
+                    speed_var += 1
+            elif event.key == pg.K_e:
+                if speed_var > 1:
+                    speed_var -= 1
     if not paused:
-        for enemy in enemies:
-            if pg.time.get_ticks() - enemy.kd[0] >= 10000 or enemy.target not in enemies:
-                enemy.target = enemy.get_target()
-                enemy.kd[0] = pg.time.get_ticks()
-            for bullet in enemy.bullets:
-                if 0 <= bullet.x <= win_size - bullet.rad*2 and 0 <= bullet.y <= win_size - bullet.rad*2:
-                    for hero in enemies:
-                        if enemy is not hero:
-                            if (0 < hero.x - bullet.x < bullet.rad * 2 or hero.x <= bullet.x < hero.x + hero.width) and \
-                                    (0 < hero.y - bullet.y < bullet.rad * 2 or hero.y <= bullet.y < hero.y + hero.width):
-                                hero.hp -= enemy.damage
-                                enemy.bullets.pop(enemy.bullets.index(bullet))
-                                hero.is_dead()
-                    if bullet is not None:
-                        bullet.move()
-                else:
-                    enemy.bullets.pop(enemy.bullets.index(bullet))
+        control_bullets(enemies)
         if len(enemies) <= 1:
+            if len(enemies) == 1:
+                enemies[0].bullets.clear()
             paused = True
         else:
             for enemy in enemies:
                 enemy.dodge()
     win.fill((52, 40, 65))
     pg.draw.rect(win, (255, 255, 255), (win_size, 0, 200, win_size))
-    y = 50  # чтобы игроки не накладывались друг на друга
+    y = 50
     for enemy in enemies:
-        text_disp("hp:"+str(enemy.hp)+str(enemy.target)[26:], win_size+30, y)
+        text_disp("hp:"+str(enemy.hp)+" target", win_size+30, y)
         pg.draw.rect(win, enemy.color, (win_size + 10, y, enemy.width, enemy.width))
+        pg.draw.rect(win, enemy.target.color, (win_size + 125, y, enemy.target.width, enemy.target.width))
         y += 50
         enemy.draw()
         for bul in enemy.bullets:
